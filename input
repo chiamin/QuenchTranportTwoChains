@@ -1,0 +1,58 @@
+basic
+{
+    L_lead = 80
+    L_device = 2
+    t_lead = 1
+    t_device = 0.5
+    t_contactL_up = 0.2
+    t_contactL_dn = 0.2
+    t_contactR_up = 0.2
+    t_contactR_dn = 0
+    mu_leadL = 0
+    mu_leadR = 0
+    mu_device = 0
+    Delta = 0.5
+    Ec = 1
+    Ng = 0.5
+    EJ = 0
+    damp_decay_length = 60
+    maxCharge = 5
+
+    mu_biasL = 0.05
+    mu_biasS = 0
+    mu_biasR = -0.05
+    dt = 1
+    time_steps = 40
+
+    NumCenter = 1
+    mixNumCenter = no
+    globExpanN = 10000000
+    globExpanItv = 1
+    globExpanCutoff = 1e-4
+    globExpanKrylovDim = 2
+    globExpanHpsiCutoff = 1e-14
+    globExpanHpsiMaxDim = 100
+    globExpanMethod = Fit
+    Truncate = yes
+
+    SubCorrN = 1000
+    corr_cutoff = 1e-12
+
+    write = no
+    write_dir = /nbi/user-scratch/s/swp778/conductance/data/majorana/ec/mu0.1_Ec0.5_Delta0.5/Ng0.5/Vb0.05
+    write_file = timeevol.save
+    read = no
+    read_dir = /nbi/user-scratch/s/swp778/conductance/data/majorana/ec/mu0.1_Ec0.5_Delta0.5/Ng0.5/Vb0.05
+    read_file = timeevol.save
+
+    verbose = yes
+    useSVD = no
+    SVDMethod = gesdd
+
+    WriteDim = 800
+    sweeps
+    {
+        maxm   minm   cutoff   niter  noise    nsweep
+        2000   16     1E-7     30     0        1
+    }
+}
