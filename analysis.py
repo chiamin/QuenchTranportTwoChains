@@ -280,12 +280,12 @@ if __name__ == '__main__':
         ax.set_xlabel ('Time')
         ax.set_ylabel ('Entanglement entropy')
 
-        yticks = [log(3**0.5), log(2**0.5), log(2)]
+        yticks = [log(3**0.5), log(2**0.5), log(2), log(4)]
         for yt in yticks:
             ax.axhline (yt, ls='--', c='k')
         ax2 = ax.twinx()
         ax2.set_ylim (ax.get_ylim())
-        ax2.set_yticks (yticks, ['$\log(\sqrt{3})$','$\log(\sqrt{2})$','$\log(2)$'])
+        ax2.set_yticks (yticks, ['$\log(\sqrt{3})$','$\log(\sqrt{2})$','$\log(2)$','$\log(4)$'])
 
         ps.set(ax)
         pdfall.savefig(f)

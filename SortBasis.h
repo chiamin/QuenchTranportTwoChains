@@ -61,13 +61,13 @@ vector<SortInfo> sort_by_energy (const Bases&... bases)
 }
 
 // Sort all the basis states by energy; however put the states from <chainS> in zero energy of the other states
-template <typename SysBasis, typename LeadBasis>
+template <typename BasisS, typename... Bases>
 vector<SortInfo>
 sort_by_energy_S_middle
-(const SysBasis& chainS, std::initializer_list<LeadBasis> other_chains)
+(const BasisS& chainS, const Bases&... bases)
 {
-    auto orb_S = sort_by_energy ({chainS});
-    auto orbs = sort_by_energy (other_chains);
+    auto orb_S = sort_by_energy (chainS);
+    auto orbs = sort_by_energy (bases...);
     auto it = orbs.begin();
     for(; it != orbs.end(); it++)
     {
@@ -79,13 +79,13 @@ sort_by_energy_S_middle
 }
 
 // chainS at the middle; chainC at the left of chainS
-template <typename SysBasis, typename LeadBasis, typename ChargeBasis>
+template <typename BasisS, typename BasisC, typename... Bases>
 vector<SortInfo>
 sort_by_energy_S_middle_charging
-(const SysBasis& chainS, const ChargeBasis& chainC, std::initializer_list<LeadBasis> other_chains)
+(const BasisS& chainS, const BasisC& chainC, const Bases&... bases)
 {
-    auto orb_C = sort_by_energy ({chainC});
-    auto orbs = sort_by_energy_S_middle (chainS, other_chains);
+    auto orb_C = sort_by_energy (chainC);
+    auto orbs = sort_by_energy_S_middle (chainS, bases...);
     auto it = orbs.begin();
     for(; it != orbs.end(); it++)
     {

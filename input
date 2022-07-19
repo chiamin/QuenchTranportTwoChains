@@ -7,13 +7,13 @@ basic
     t_contactL_up = 0.2
     t_contactL_dn = 0.2
     t_contactR_up = 0.2
-    t_contactR_dn = 0
+    t_contactR_dn = 0.2
     mu_leadL = 0
     mu_leadR = 0
     mu_device = 0
     Delta = 0.5
     Ec = 1
-    Ng = 0.5
+    Ng = 0
     EJ = 0
     damp_decay_length = 60
     maxCharge = 5

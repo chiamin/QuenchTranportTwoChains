@@ -111,6 +111,38 @@ inline Real get_current (const MPO& JMPO, const MPS& psi)
     return -2. * imag(J);
 }
 
+tuple<int,int> find_scatterer_region (const ToLocDict& to_loc, string Sname, string Cname, bool include_charge=true)
+{
+    bool start_scatter = false;
+    int i1 = -1,
+        i2 = to_loc.size();
+    for(int i = 1; i < to_loc.size(); i++)
+    {
+        auto [name, ind] = to_loc.at(i);
+        bool is_scatter = (name == Sname || (include_charge and name == Cname));
+        if (!start_scatter and is_scatter)
+        {
+            start_scatter = true;
+            i1 = i;
+        }
+        if (start_scatter and !is_scatter)
+        {
+            i2 = i-1;
+            break;
+        }
+    }
+    mycheck (i1 > 0, "Do not search a system site");
+
+    // Check all the scatterer sites are together
+    for(int i = i2+1; i < to_loc.size(); i++)
+    {
+        auto [name, ind] = to_loc.at(i);
+        bool is_scatter = (name == Sname || (include_charge and name == Cname));
+        mycheck (!is_scatter, "Scatterer sites are not all together");
+    }
+    return {i1, i2};
+}
+
 int main(int argc, char* argv[])
 {
     string infile = argv[1];
@@ -205,7 +237,8 @@ int main(int argc, char* argv[])
         charge = OneParticleBasis ("C", 1);
 
         // Combine and sort all the basis states
-        auto info = sort_by_energy_charging (charge, leadL, leadR, scatterer);
+        //auto info = sort_by_energy_charging (charge, leadL, leadR, scatterer);
+        auto info = sort_by_energy_S_middle_charging (scatterer, charge, leadL, leadR);
         tie(to_glob, to_loc) = make_orb_dicts (info);
         print_orbs(info);
 
@@ -252,7 +285,7 @@ int main(int argc, char* argv[])
     // -- Observer --
     auto obs = TDVPObserver (sites, psi, {"charge_site",to_glob.at({"C",1})});
     // Current MPO
-    //  (Left leads)        (Kitaev chains)      (Right leads)
+    //  (Left leads)              (Kitaev chains)      (Right leads)
     //  2--4--6--...(-3)--(-1)    2--4--6--...(-1)     2--4--6--...(-1)
     //
     //  1--3--5--...(-4)--(-2)    1--3--5--...(-2)     1--3--5--...(-2)
@@ -267,8 +300,14 @@ int main(int argc, char* argv[])
         scatter_sites.push_back (to_glob.at({"S",i}));
     }
     scatter_sites.push_back (to_glob.at({"C",1}));
-    cout << "** " << scatter_sites.size() << endl;
+    cout << "** ";
+    for(int i : scatter_sites) cout << i << " ";
+    cout << endl;
 
+    // Find the scatterer region, which will be used in compaute the entanglement entropy
+    // (Assume that all the scatterer sites are together; otherwise raise error.)
+    auto [si1, si2] = find_scatterer_region (to_loc, scatterer.name(), charge.name());
+    cout << "-- " << si1 << " " << si2 << endl;
 
     // -- Time evolution --
     cout << "Start time evolution" << endl;
@@ -311,7 +350,7 @@ int main(int argc, char* argv[])
 
         // Measure entanglement entropy
         timer["entang entropy"].start();
-        Real EE = get_entang_entropy_brute_force (psi, scatter_sites);
+        Real EE = get_entang_entropy (psi, si1, si2);
         cout << "\tEE = " << EE << endl;
         timer["entang entropy"].stop();
 

@@ -1,3 +1,9 @@
+
+Put all the scatterer sites as well as the charge site together
+
+Compute the entanglement entropy by pulling out a sub-chain in MPS, which is efficient when the scatterer size is large.
+
+---
 4 leads, two Kitaev chains
 
 The excited state of the two Kitaev chains is the excited state of the first chain product the ground state of the second chain
