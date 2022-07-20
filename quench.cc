@@ -355,8 +355,7 @@ int main(int argc, char* argv[])
         // Measure entanglement entropy
         timer["entang entropy"].start();
         Real EE = get_entang_entropy (psi, si1, si2, {"Cutoff",entropy_cutoff});
-        Real EEE = get_entang_entropy_brute_force (psi, scatter_sites);
-        cout << "\tEE = " << EE << " " << EEE << endl;
+        cout << "\tEE = " << EE << endl;
         timer["entang entropy"].stop();
 
         step++;
