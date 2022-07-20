@@ -199,7 +199,8 @@ int main(int argc, char* argv[])
     auto globExpanHpsiMaxDim = input.getInt("globExpanHpsiMaxDim",300);
     auto globExpanMethod     = input.getString("globExpanMethod","DensityMatrix");
 
-    auto entropy_cutoff = input.getReal("entropy_cutoff",1e-12);
+    auto measure_entropy_cutoff = input.getReal("measure_entropy_cutoff",1e-14);
+    auto measure_entropy_maxdim = input.getReal("measure_entropy_maxdim",std::numeric_limits<int>::max());
 
     auto UseSVD        = input.getYesNo("UseSVD",true);
     auto SVDmethod     = input.getString("SVDMethod","gesdd");  // can be also "ITensor"
@@ -312,6 +313,7 @@ int main(int argc, char* argv[])
     // Find the scatterer region, which will be used in compaute the entanglement entropy
     // (Assume that all the scatterer sites are together; otherwise raise error.)
     auto [si1, si2] = find_scatterer_region (to_loc, scatterer.name(), charge.name());
+    cout << "charge and scatterer is between sites " << si1 << " " << si2 << endl;
 
     // -- Time evolution --
     cout << "Start time evolution" << endl;
@@ -354,9 +356,9 @@ int main(int argc, char* argv[])
 
         // Measure entanglement entropy
         timer["entang entropy"].start();
-        Real EE = get_entang_entropy (psi, si1, si2, {"Cutoff",entropy_cutoff});
-        cout << "\tEE = " << EE << endl;
+        Real EE = get_entang_entropy (psi, si1, si2, {"Cutoff",measure_entropy_cutoff,"MaxDim",measure_entropy_maxdim});
         timer["entang entropy"].stop();
+        cout << "\tEE = " << EE << endl;
 
         step++;
         if (write)
