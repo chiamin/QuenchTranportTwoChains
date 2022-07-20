@@ -37,7 +37,7 @@ tuple <Real,Real,int,int> en_charging_energy (int maxOcc, Real Ec, Real Ng)
 
 template <typename BasisL, typename BasisR, typename BasisS, typename SiteType, typename Para>
 MPS get_ground_state_BdG_scatter (const BasisL& leadL, const BasisR& leadR, const BasisS& scatterer,
-                                  const SiteType& sites, Real muL, Real muR, const Para& para, int maxOcc, const ToGlobDict& to_glob)
+                                  const SiteType& sites, const Para& para, int maxOcc, const ToGlobDict& to_glob)
 {
     int N = to_glob.size();
     mycheck (length(sites) == N, "size not match");
@@ -46,12 +46,13 @@ MPS get_ground_state_BdG_scatter (const BasisL& leadL, const BasisR& leadR, cons
     vector<string> state (N+1);
 
     // Leads
-    auto occ_negative_en_states = [&to_glob, &state] (const auto& basis, Real mu)
+    auto occ_negative_en_states = [&to_glob, &state] (const auto& basis, Real mu_up, Real mu_dn)
     {
         string p = basis.name();
         for(int k = 1; k <= basis.size(); k++)
         {
             int i = to_glob.at({p,k});
+            auto mu = (i % 2 == 0 ? mu_up : mu_dn);
             auto en = basis.en(k);
             if (en < mu)
                 state.at(i) = "Occ";
@@ -59,8 +60,8 @@ MPS get_ground_state_BdG_scatter (const BasisL& leadL, const BasisR& leadR, cons
                 state.at(i) = "Emp";
         }
     };
-    occ_negative_en_states (leadL, muL);
-    occ_negative_en_states (leadR, muR);
+    occ_negative_en_states (leadL, para.mu_biasL_up, para.mu_biasL_dn);
+    occ_negative_en_states (leadR, para.mu_biasR_up, para.mu_biasR_dn);
 
     // Scatterer
     string sname = scatterer.name();
@@ -122,7 +123,7 @@ MPS get_ground_state_BdG_scatter (const BasisL& leadL, const BasisR& leadR, cons
         psi.ref(iglob) = A;
         PrintData(psi(iglob));
     }
-exit(0);*/
+*/
     return psi;
 }
 

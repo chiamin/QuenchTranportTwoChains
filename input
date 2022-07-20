@@ -1,6 +1,6 @@
 basic
 {
-    L_lead = 80
+    L_lead = 40
     L_device = 2
     t_lead = 1
     t_device = 0.5
@@ -13,16 +13,17 @@ basic
     mu_device = 0
     Delta = 0.5
     Ec = 1
-    Ng = 0
+    Ng = 0.5
     EJ = 0
     damp_decay_length = 60
     maxCharge = 5
 
-    mu_biasL = 0.05
-    mu_biasS = 0
-    mu_biasR = -0.05
+    mu_biasL_up = 0.05
+    mu_biasL_dn = 0.05
+    mu_biasR_up = -0.05
+    mu_biasR_dn = -0.05
     dt = 1
-    time_steps = 40
+    time_steps = 10
 
     NumCenter = 1
     mixNumCenter = no

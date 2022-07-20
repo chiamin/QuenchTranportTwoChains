@@ -23,7 +23,9 @@ using namespace std;
 
 struct Para
 {
-    Real Ec=0., Ng=0., Delta=0., EJ=0., tcL_up=0., tcL_dn=0., tcR_up=0., tcR_dn=0.;
+    Real Ec=std::nan(""), Ng=std::nan(""), Delta=std::nan(""), EJ=std::nan(""),
+         tcL_up=std::nan(""), tcL_dn=std::nan(""), tcR_up=std::nan(""), tcR_dn=std::nan(""),
+         mu_biasL_up=std::nan(""), mu_biasL_dn=std::nan(""), mu_biasR_up=std::nan(""), mu_biasR_dn=std::nan("");
 
     void write (ostream& s) const
     {
@@ -31,6 +33,10 @@ struct Para
         iut::write(s,tcL_dn);
         iut::write(s,tcR_up);
         iut::write(s,tcR_dn);
+        iut::write(s,mu_biasL_up);
+        iut::write(s,mu_biasL_dn);
+        iut::write(s,mu_biasR_up);
+        iut::write(s,mu_biasR_dn);
         iut::write(s,Ec);
         iut::write(s,Ng);
         iut::write(s,Delta);
@@ -43,6 +49,10 @@ struct Para
         iut::read(s,tcL_dn);
         iut::read(s,tcR_up);
         iut::read(s,tcR_dn);
+        iut::read(s,mu_biasL_up);
+        iut::read(s,mu_biasL_dn);
+        iut::read(s,mu_biasR_up);
+        iut::read(s,mu_biasR_dn);
         iut::read(s,Ec);
         iut::read(s,Ng);
         iut::read(s,Delta);
@@ -145,29 +155,31 @@ tuple<int,int> find_scatterer_region (const ToLocDict& to_loc, string Sname, str
 
 int main(int argc, char* argv[])
 {
+    Para para;
+
     string infile = argv[1];
     InputGroup input (infile,"basic");
-
     auto L_lead   = input.getInt("L_lead");
     auto L_device   = input.getInt("L_device");
     auto t_lead     = input.getReal("t_lead");
     auto t_device   = input.getReal("t_device");
-    auto t_contactL_up = input.getReal("t_contactL_up");
-    auto t_contactL_dn = input.getReal("t_contactL_dn");
-    auto t_contactR_up = input.getReal("t_contactR_up");
-    auto t_contactR_dn = input.getReal("t_contactR_dn");
+    para.tcL_up     = input.getReal("t_contactL_up");
+    para.tcL_dn     = input.getReal("t_contactL_dn");
+    para.tcR_up     = input.getReal("t_contactR_up");
+    para.tcR_dn     = input.getReal("t_contactR_dn");
     auto mu_leadL   = input.getReal("mu_leadL");
     auto mu_leadR   = input.getReal("mu_leadR");
     auto mu_device  = input.getReal("mu_device");
-    auto mu_biasL   = input.getReal("mu_biasL");
-    auto mu_biasS   = input.getReal("mu_biasS");
-    auto mu_biasR   = input.getReal("mu_biasR");
-    auto Delta      = input.getReal("Delta");
-    auto Ec         = input.getReal("Ec");
-    auto Ng         = input.getReal("Ng");
-    auto EJ         = input.getReal("EJ");
+    para.mu_biasL_up = input.getReal("mu_biasL_up");
+    para.mu_biasL_dn = input.getReal("mu_biasL_dn");
+    para.mu_biasR_up = input.getReal("mu_biasR_up");
+    para.mu_biasR_dn = input.getReal("mu_biasR_dn");
+    para.Delta       = input.getReal("Delta");
+    para.Ec          = input.getReal("Ec");
+    para.Ng          = input.getReal("Ng");
+    para.EJ          = input.getReal("EJ");
     auto damp_decay_length = input.getInt("damp_decay_length",0);
-    auto maxCharge  = input.getInt("maxCharge");
+    auto maxCharge   = input.getInt("maxCharge");
 
     auto dt            = input.getReal("dt");
     auto time_steps    = input.getInt("time_steps");
@@ -186,6 +198,8 @@ int main(int argc, char* argv[])
     auto globExpanHpsiCutoff = input.getReal("globExpanHpsiCutoff",1e-8);
     auto globExpanHpsiMaxDim = input.getInt("globExpanHpsiMaxDim",300);
     auto globExpanMethod     = input.getString("globExpanMethod","DensityMatrix");
+
+    auto entropy_cutoff = input.getReal("entropy_cutoff",1e-12);
 
     auto UseSVD        = input.getYesNo("UseSVD",true);
     auto SVDmethod     = input.getString("SVDMethod","gesdd");  // can be also "ITensor"
@@ -207,7 +221,6 @@ int main(int argc, char* argv[])
 
     int step = 1;
     auto sites = MixedBasis();
-    Para para;
     Args args_basis;
 
     ToGlobDict to_glob;
@@ -231,7 +244,7 @@ int main(int argc, char* argv[])
 
         // Create basis for scatterer
         cout << "H dev" << endl;
-        scatterer = TwoChainBdGBasis ("S", L_device, t_device, t_device, mu_device, mu_device, Delta, Delta);
+        scatterer = TwoChainBdGBasis ("S", L_device, t_device, t_device, mu_device, mu_device, para.Delta, para.Delta);
 
         // Create basis for the charge site
         charge = OneParticleBasis ("C", 1);
@@ -252,23 +265,18 @@ int main(int argc, char* argv[])
             scatter_sites.push_back (to_glob.at({"S",i}));
         }
         // Make SiteSet
-        auto systype = (EJ == 0. ? "SC_scatter" : "SC_Josephson_scatter");
+        auto systype = (para.EJ == 0. ? "SC_scatter" : "SC_Josephson_scatter");
         args_basis = {"MaxOcc",maxCharge,"SystemType",systype};
         sites = MixedBasis (N, scatter_sites, charge_site, args_basis);
         cout << "charge site = " << charge_site << endl;
 
         // Make Hamiltonian MPO
-        para.Ec = Ec;   para.Ng = Ng;   para.Delta = Delta;  para.EJ = EJ;
-        para.tcL_up = t_contactL_up;
-        para.tcL_dn = t_contactL_dn;
-        para.tcR_up = t_contactR_up;
-        para.tcR_dn = t_contactR_dn;
         auto ampo = get_ampo_two_Kitaev_chains (leadL, leadR, scatterer, charge, sites, para, to_glob);
         H = toMPO (ampo);
         cout << "MPO dim = " << maxLinkDim(H) << endl;
 
         // Initialze MPS
-        psi = get_ground_state_BdG_scatter (leadL, leadR, scatterer, sites, mu_biasL, mu_biasR, para, maxCharge, to_glob);
+        psi = get_ground_state_BdG_scatter (leadL, leadR, scatterer, sites, para, maxCharge, to_glob);
         psi.position(1);
 
         // Check initial energy
@@ -300,14 +308,10 @@ int main(int argc, char* argv[])
         scatter_sites.push_back (to_glob.at({"S",i}));
     }
     scatter_sites.push_back (to_glob.at({"C",1}));
-    cout << "** ";
-    for(int i : scatter_sites) cout << i << " ";
-    cout << endl;
 
     // Find the scatterer region, which will be used in compaute the entanglement entropy
     // (Assume that all the scatterer sites are together; otherwise raise error.)
     auto [si1, si2] = find_scatterer_region (to_loc, scatterer.name(), charge.name());
-    cout << "-- " << si1 << " " << si2 << endl;
 
     // -- Time evolution --
     cout << "Start time evolution" << endl;
@@ -350,8 +354,9 @@ int main(int argc, char* argv[])
 
         // Measure entanglement entropy
         timer["entang entropy"].start();
-        Real EE = get_entang_entropy (psi, si1, si2);
-        cout << "\tEE = " << EE << endl;
+        Real EE = get_entang_entropy (psi, si1, si2, {"Cutoff",entropy_cutoff});
+        Real EEE = get_entang_entropy_brute_force (psi, scatter_sites);
+        cout << "\tEE = " << EE << " " << EEE << endl;
         timer["entang entropy"].stop();
 
         step++;
