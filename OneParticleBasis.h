@@ -33,9 +33,7 @@ class OneParticleBasis
         : _name (name)
         , _H (H)
         {
-cout << "HH\n" << H << endl;
             diagHermitian (H, _Uik, _ens);
-cout << _Uik << endl;
         }
         OneParticleBasis (const string& name, int L, Real t, Real mu, Real damp_fac=1., bool damp_from_right=true, bool verbose=false)
         : OneParticleBasis (name, tight_binding_Hamilt (L, t, mu, damp_fac, damp_from_right, verbose))
