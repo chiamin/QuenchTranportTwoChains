@@ -1,7 +1,7 @@
 basic
 {
-    L_lead = 80
-    L_device = 10
+    L_lead = 8
+    L_device = 2
     t_lead = 1
     t_device = 0.5
     t_contactL_up = 0.2
@@ -18,12 +18,14 @@ basic
     damp_decay_length = 60
     maxCharge = 5
 
+    // Can be density_quench or mu_quench
+    quench_type = mu_quench
     mu_biasL_up = 0.05
     mu_biasL_dn = 0.05
     mu_biasR_up = -0.05
     mu_biasR_dn = -0.05
     dt = 1
-    time_steps = 40
+    time_steps = 3
 
     NumCenter = 1
     mixNumCenter = no
@@ -38,19 +40,32 @@ basic
 
     measure_entropy_cutoff = 1e-6
 
-    write = no
-    write_dir = /nbi/user-scratch/s/swp778/conductance/data/majorana/ec/mu0.1_Ec0.5_Delta0.5/Ng0.5/Vb0.05
+    write = yes
+    write_dir = .
     write_file = timeevol.save
-    read = no
-    read_dir = /nbi/user-scratch/s/swp778/conductance/data/majorana/ec/mu0.1_Ec0.5_Delta0.5/Ng0.5/Vb0.05
+    read = yes
+    read_dir = .
     read_file = timeevol.save
 
     verbose = yes
     useSVD = no
     SVDMethod = gesdd
 
-    WriteDim = 800
-    sweeps
+    WriteDim = 2000
+    DMRG
+    {
+        maxm   cutoff   niter  noise    nsweep
+        16    1E-12    10     1e-6      2
+}
+        32    1E-12    10     1e-8      2
+        64    1E-12    10     0         2
+    }
+        128   1E-12    10     0        4
+        200   1E-12    10     0        3
+        300   1E-12    10     0        3
+    }
+
+    TDVP
     {
         maxm   minm   cutoff   niter  noise    nsweep
         2000   16     1E-7     30     0        1

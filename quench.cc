@@ -60,13 +60,17 @@ struct Para
     }
 };
 
+template <typename BasisL, typename BasisR, typename BasisS>
 void writeAll (const string& filename,
                const MPS& psi, const MPO& H,
                const Para& para,
                const Args& args_basis,
                int step,
                const ToGlobDict& to_glob,
-               const ToLocDict& to_loc)
+               const ToLocDict& to_loc,
+               const BasisL& leadL,
+               const BasisR& leadR,
+               const BasisS& scatterer)
 {
     ofstream ofs (filename);
     itensor::write (ofs, psi);
@@ -76,15 +80,22 @@ void writeAll (const string& filename,
     para.write (ofs);
     iut::write (ofs, to_glob);
     iut::write (ofs, to_loc);
+    leadL.write (ofs);
+    leadR.write (ofs);
+    scatterer.write (ofs);
 }
 
+template <typename BasisL, typename BasisR, typename BasisS>
 void readAll (const string& filename,
               MPS& psi, MPO& H,
               Para& para,
               Args& args_basis,
               int& step,
               ToGlobDict& to_glob,
-              ToLocDict& to_loc)
+              ToLocDict& to_loc,
+              BasisL& leadL,
+              BasisR& leadR,
+              BasisS& scatterer)
 {
     ifstream ifs = open_file (filename);
     itensor::read (ifs, psi);
@@ -94,6 +105,9 @@ void readAll (const string& filename,
     para.read (ifs);
     iut::read (ifs, to_glob);
     iut::read (ifs, to_loc);
+    leadL.read (ifs);
+    leadR.read (ifs);
+    scatterer.read (ifs);
 }
 
 void print_orbs (const vector<SortInfo>& orbs)
@@ -181,6 +195,7 @@ int main(int argc, char* argv[])
     auto damp_decay_length = input.getInt("damp_decay_length",0);
     auto maxCharge   = input.getInt("maxCharge");
 
+    auto quench_type   = input.getString("quench_type");
     auto dt            = input.getReal("dt");
     auto time_steps    = input.getInt("time_steps");
     auto NumCenter     = input.getInt("NumCenter");
@@ -213,7 +228,8 @@ int main(int argc, char* argv[])
     auto read_dir      = input.getString("read_dir",".");
     auto read_file     = input.getString("read_file","");
 
-    auto sweeps        = iut::Read_sweeps (infile, "sweeps");
+    auto sweeps        = iut::Read_sweeps (infile, "TDVP");
+    auto sweeps_DMRG   = iut::Read_sweeps (infile, "DMRG");
 
     cout << setprecision(14) << endl;
 
@@ -271,21 +287,48 @@ int main(int argc, char* argv[])
         sites = MixedBasis (N, scatter_sites, charge_site, args_basis);
         cout << "charge site = " << charge_site << endl;
 
-        // Make Hamiltonian MPO
-        auto ampo = get_ampo_two_Kitaev_chains (leadL, leadR, scatterer, charge, sites, para, to_glob);
-        H = toMPO (ampo);
-        cout << "MPO dim = " << maxLinkDim(H) << endl;
+        if (quench_type == "density_quench")
+        {
+            // Make Hamiltonian MPO
+            auto ampo = get_ampo_two_Kitaev_chains (leadL, leadR, scatterer, charge, sites, para, to_glob);
+            H = toMPO (ampo);
+            cout << "MPO dim = " << maxLinkDim(H) << endl;
 
-        // Initialze MPS
-        psi = get_ground_state_BdG_scatter (leadL, leadR, scatterer, sites, para, maxCharge, to_glob);
-        psi.position(1);
+            // Initialze MPS
+            psi = get_ground_state_BdG_scatter (leadL, leadR, scatterer, sites, para, maxCharge, to_glob);
+            psi.position(1);
+            cout << "Initial energy = " << inner (psi,H,psi) << endl;
+        }
+        else if (quench_type == "mu_quench")
+        {
+            // Make Hamiltonian MPO for initial state
+            auto para2 = para;
+            para2.mu_biasL_up = 0;   para2.mu_biasL_dn = 0;
+            para2.mu_biasR_up = 0;   para2.mu_biasR_dn = 0;
+            auto ampoi = get_ampo_two_Kitaev_chains (leadL, leadR, scatterer, charge, sites, para2, to_glob);
+            auto H0 = toMPO (ampoi);
+            cout << "H0 MPO dim = " << maxLinkDim(H0) << endl;
 
-        // Check initial energy
-        cout << "Initial energy = " << inner (psi,H,psi) << endl;
+            // Initialze MPS
+            psi = get_ground_state_BdG_scatter (leadL, leadR, scatterer, sites, para, maxCharge, to_glob);
+            psi.position(1);
+            itensor::Real en0 = dmrg (psi, H0, sweeps_DMRG);
+            cout << "Initial energy = " << en0 << endl;
+
+            // Make Hamiltonian MPO for time evolution
+            auto ampo = get_ampo_two_Kitaev_chains (leadL, leadR, scatterer, charge, sites, para, to_glob);
+            H = toMPO (ampo);
+            cout << "MPO dim = " << maxLinkDim(H) << endl;
+        }
+        else
+        {
+            cout << "Unknown quench type: " << quench_type << endl;
+            throw;
+        }
     }
     else
     {
-        readAll (read_dir+"/"+read_file, psi, H, para, args_basis, step, to_glob, to_loc);
+        readAll (read_dir+"/"+read_file, psi, H, para, args_basis, step, to_glob, to_loc, leadL, leadR, scatterer);
         sites = MixedBasis (siteInds(psi), args_basis);
     }
     // -- End of initialization --
@@ -364,7 +407,7 @@ int main(int argc, char* argv[])
         if (write)
         {
             timer["write"].start();
-            writeAll (write_dir+"/"+write_file, psi, H, para, args_basis, step, to_glob, to_loc);
+            writeAll (write_dir+"/"+write_file, psi, H, para, args_basis, step, to_glob, to_loc, leadL, leadR, scatterer);
             timer["write"].stop();
         }
     }

@@ -221,8 +221,8 @@ if __name__ == '__main__':
 
         f6,ax6 = pl.subplots()
         plot_time_slice (ax6, Ss, n=3)
-        ax6.set_xlabel ('site')
-        ax6.set_ylabel ('entropy')
+        ax6.set_xlabel ('Site')
+        ax6.set_ylabel ('Entropy')
         ps.set(ax6)
         pdfall.savefig(f6)
 

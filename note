@@ -1,4 +1,6 @@
 
+Support density quench and mu quench
+---
 Put all the scatterer sites as well as the charge site together
 
 Compute the entanglement entropy by pulling out a sub-chain in MPS, which is efficient when the scatterer size is large.
