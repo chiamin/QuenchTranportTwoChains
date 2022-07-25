@@ -35,9 +35,13 @@ tuple <Real,Real,int,int> en_charging_energy (int maxOcc, Real Ec, Real Ng)
     return {en_even, en_odd, n_even, n_odd};
 }
 
-template <typename BasisL, typename BasisR, typename BasisS, typename SiteType, typename Para>
-MPS get_ground_state_BdG_scatter (const BasisL& leadL, const BasisR& leadR, const BasisS& scatterer,
-                                  const SiteType& sites, const Para& para, int maxOcc, const ToGlobDict& to_glob)
+template <typename BasisL, typename BasisR, typename BasisS, typename SiteType>
+MPS get_ground_state_BdG_scatter
+(const BasisL& leadL_up, const BasisL& leadL_dn, const BasisR& leadR_up, const BasisR& leadR_dn,
+ const BasisS& scatt_up, const BasisS& scatt_dn,
+ Real mu_biasL_up, Real mu_biasL_dn, Real mu_biasR_up, Real mu_biasR_dn,
+ Real Ec, Real Ng,
+ const SiteType& sites, int maxOcc, const ToGlobDict& to_glob)
 {
     int N = to_glob.size();
     mycheck (length(sites) == N, "size not match");
@@ -46,13 +50,12 @@ MPS get_ground_state_BdG_scatter (const BasisL& leadL, const BasisR& leadR, cons
     vector<string> state (N+1);
 
     // Leads
-    auto occ_negative_en_states = [&to_glob, &state] (const auto& basis, Real mu_up, Real mu_dn)
+    auto occ_negative_en_states = [&to_glob, &state] (const auto& basis, Real mu)
     {
         string p = basis.name();
         for(int k = 1; k <= basis.size(); k++)
         {
             int i = to_glob.at({p,k});
-            auto mu = (i % 2 == 0 ? mu_up : mu_dn);
             auto en = basis.en(k);
             if (en < mu)
                 state.at(i) = "Occ";
@@ -60,41 +63,51 @@ MPS get_ground_state_BdG_scatter (const BasisL& leadL, const BasisR& leadR, cons
                 state.at(i) = "Emp";
         }
     };
-    occ_negative_en_states (leadL, para.mu_biasL_up, para.mu_biasL_dn);
-    occ_negative_en_states (leadR, para.mu_biasR_up, para.mu_biasR_dn);
+    occ_negative_en_states (leadL_up, mu_biasL_up);
+    occ_negative_en_states (leadL_dn, mu_biasL_dn);
+    occ_negative_en_states (leadR_up, mu_biasR_up);
+    occ_negative_en_states (leadR_dn, mu_biasR_dn);
 
     // Scatterer
-    string sname = scatterer.name();
-    for(int k = 1; k <= scatterer.size(); k++)
+    auto vacuum_state = [&to_glob, &state] (const auto& basis)
     {
-        int i = to_glob.at({sname,k});
-        state.at(i) = "Emp";
-    }
+        string name = basis.name();
+        for(int k = 1; k <= basis.size(); k++)
+        {
+            int i = to_glob.at({name,k});
+            state.at(i) = "Emp";
+        }
+    };
+    vacuum_state (scatt_up);
+    vacuum_state (scatt_dn);
 
     // Superconducting gap
-    Real SC_gap = scatterer.en(1);
+    Real SC_gap = scatt_up.en(1);
     cout << "SC gap = " << SC_gap << endl;
 
 
     // Capacity site
     // Find out the charge numbers, which are integers, that lowest the charging energy, for even and odd parities
-    auto [enC0, enC1, n_even, n_odd] = en_charging_energy (maxOcc, para.Ec, para.Ng);
+    auto [enC0, enC1, n_even, n_odd] = en_charging_energy (maxOcc, Ec, Ng);
     // Combine the scatter energies to decide to choose even or odd sector
     Real en0 = enC0,
          en1 = enC1 + SC_gap;
     cout << "n (even,odd) = " << n_even << ", " << n_odd << endl;
     cout << "E (even,odd) = " << en0 << ", " << en1 << endl;
-    if (en1 < en0) // First excited state in superconductor
+    // First excited state for superconductor
+    if (en1 < en0)
     {
-        int is1 = to_glob.at({"S",1});
+        string name = scatt_up.name();
+        int is1 = to_glob.at({name,1});
         state.at(is1) = "Occ";
         cout << "Ground state has odd parity" << endl;
     }
+    // Ground state for superconductor
     else
     {
         cout << "Ground state has even parity" << endl;
     }
-    int  n   = (en0 <= en1 ? n_even : n_odd);
+    int n = (en0 <= en1 ? n_even : n_odd);
     cout << "Initial charge = " << n << endl;
     // Set the charge site
     int ic = to_glob.at({"C",1});

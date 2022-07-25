@@ -54,12 +54,14 @@ class OneParticleBasis
             itensor::write(s,_name);
             itensor::write(s,_Uik);
             itensor::write(s,_ens);
+            itensor::write(s,_H);
         }
         void read (istream& s)
         {
             itensor::read(s,_name);
             itensor::read(s,_Uik);
             itensor::read(s,_ens);
+            itensor::read(s,_H);
         }
 
     protected:
@@ -87,6 +89,8 @@ vector<tuple<int,auto,bool>> OneParticleBasis :: C_op (int i, bool dag) const
     return k_coef_dag;
 }
 
+namespace iut
+{
 auto write (ostream& s, const OneParticleBasis& t)
 {
     t.write (s);
@@ -95,4 +99,5 @@ auto read (istream& s, OneParticleBasis& t)
 {
     t.read (s);
 }
+} // namespace
 #endif

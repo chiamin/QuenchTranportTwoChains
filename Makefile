@@ -18,7 +18,7 @@ MYDIR=$(HOME)/itensor.utility/
 
 MYFLAGS=-I$(MYDIR) -fmax-errors=3 -Wno-unused-variable -Wno-unused-function -Wno-sign-compare
 
-HEADERS=MyObserver.h MixedBasis.h SortBasis.h SpecialFermion.h tdvp.h TDVPObserver.h basisextension.h InitState.h BdGBasis.h OneParticleBasis.h Hamiltonian.h TwoChainTightBindingBasis.h TwoChainBdGBasis.h
+HEADERS=MyObserver.h MixedBasis.h SortBasis.h SpecialFermion.h tdvp.h TDVPObserver.h basisextension.h InitState.h BdGBasis.h OneParticleBasis.h Hamiltonian.h
 
 # 5. For any additional .cc (source) files making up your project,
 #    add their full filenames here.

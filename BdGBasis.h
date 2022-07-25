@@ -382,6 +382,8 @@ Matrix BdGBasis :: U () const
     return Uc;
 }
 
+namespace iut
+{
 auto write (ostream& s, const BdGBasis& t)
 {
     t.write (s);
@@ -390,6 +392,7 @@ auto read (istream& s, BdGBasis& t)
 {
     t.read (s);
 }
+} // namespace
 
 // Original Hamiltonian in the BdG basis.
 // Do not confuse with the BdG Hamiltonian.

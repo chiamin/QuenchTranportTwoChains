@@ -1,6 +1,6 @@
 basic
 {
-    L_lead = 8
+    L_lead = 80
     L_device = 2
     t_lead = 1
     t_device = 0.5
@@ -13,7 +13,7 @@ basic
     mu_device = 0
     Delta = 0.5
     Ec = 1
-    Ng = 0.5
+    Ng = 0
     EJ = 0
     damp_decay_length = 60
     maxCharge = 5
@@ -25,7 +25,7 @@ basic
     mu_biasR_up = -0.05
     mu_biasR_dn = -0.05
     dt = 1
-    time_steps = 3
+    time_steps = 400
 
     NumCenter = 1
     mixNumCenter = no
@@ -38,25 +38,24 @@ basic
     globExpanMethod = Fit
     Truncate = yes
 
-    measure_entropy_cutoff = 1e-6
+    measure_entropy_cutoff = 1e-4
 
     write = yes
     write_dir = .
-    write_file = timeevol.save
-    read = yes
+    write_file = mu.save
+    read = no
     read_dir = .
-    read_file = timeevol.save
+    read_file = mu.save
 
     verbose = yes
     useSVD = no
     SVDMethod = gesdd
 
-    WriteDim = 2000
+    WriteDim = 800
     DMRG
     {
         maxm   cutoff   niter  noise    nsweep
         16    1E-12    10     1e-6      2
-}
         32    1E-12    10     1e-8      2
         64    1E-12    10     0         2
     }
@@ -68,6 +67,6 @@ basic
     TDVP
     {
         maxm   minm   cutoff   niter  noise    nsweep
-        2000   16     1E-7     30     0        1
+        2000   16     1E-6     30     0        1
     }
 }

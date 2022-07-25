@@ -144,6 +144,7 @@ def get_basis (fname):
                         return np.array(ens), np.array(segs)
                     ens.append (float(tmp[3]))
                     segs.append (tmp[1])
+    raise Exception
 
 def extrap_current (ts, Il, Ir, plot=False):
     n = 100
@@ -173,30 +174,36 @@ if __name__ == '__main__':
         ts = dt * np.arange(1,Nstep+1)
 
         # n profile
-        f2,ax2 = pl.subplots()
+        '''f2,ax2 = pl.subplots()
         plot_prof (ax2, ns, dt, 'density')
         ax2.set_title ('$m='+str(m)+'$')
         ps.set(ax2)
-        pdfall.savefig(f2)
+        pdfall.savefig(f2)'''
 
         f,ax = pl.subplots()
-        ii = segs == 'L'
-        plot_time_slice (ax, ns[:,ii], n=5, marker='.', ls='None', label='L', xs=en_basis[ii])
-        ii = segs == 'R'
-        plot_time_slice (ax, ns[:,ii], n=5, marker='x', ls='None', label='R', xs=en_basis[ii])
-        ii = segs == 'S'
-        plot_time_slice (ax, ns[:,ii], n=5, marker='+', ls='None', label='S', xs=en_basis[ii])
+        ii = segs == 'Lup'
+        plot_time_slice (ax, ns[:,ii], n=1, marker='.', ls='None', label='L up', xs=en_basis[ii])
+        ii = segs == 'Ldn'
+        plot_time_slice (ax, ns[:,ii], n=1, marker='.', ls='None', label='L down', xs=en_basis[ii])
+        ii = segs == 'Rup'
+        plot_time_slice (ax, ns[:,ii], n=1, marker='x', ls='None', label='R up', xs=en_basis[ii])
+        ii = segs == 'Rdn'
+        plot_time_slice (ax, ns[:,ii], n=1, marker='x', ls='None', label='R down', xs=en_basis[ii])
+        ii = segs == 'Sup'
+        plot_time_slice (ax, ns[:,ii], n=1, marker='+', ls='None', label='S up', xs=en_basis[ii])
+        ii = segs == 'Sdn'
+        plot_time_slice (ax, ns[:,ii], n=1, marker='+', ls='None', label='S down', xs=en_basis[ii])
         for x in np.where (ii)[0]:
             ax.axvline (en_basis[x], ls='--', c='gray', alpha=0.5)
         ii = segs == 'C'
         plot_time_slice (ax, ns[:,ii], n=5, marker='*', ls='None', label='C', xs=en_basis[ii])
-        ax.set_xlabel ('energy')
-        ax.set_ylabel ('occupasion')
+        ax.set_xlabel ('Energy')
+        ax.set_ylabel ('Occupasion')
         ax.legend()
         ps.set(ax)
         pdfall.savefig(f)
 
-        f,ax = pl.subplots()
+        '''f,ax = pl.subplots()
         sites = np.array(range(1,L+2))
         ii = segs == 'L'
         plot_time_slice (ax, ns[:,ii], n=5, marker='.', ls='None', label='L', xs=sites[ii])
@@ -210,7 +217,7 @@ if __name__ == '__main__':
         ax.set_ylabel ('occupasion')
         ax.legend()
         ps.set(ax)
-        pdfall.savefig(f)
+        pdfall.savefig(f)'''
 
         # S profile
         f5,ax5 = pl.subplots()
@@ -249,8 +256,8 @@ if __name__ == '__main__':
         cs = range(-maxnC,maxnC+1)
         for i in range(len(cs)):
             ax.plot (ts, nCs[:,i], label='n='+str(cs[i]));
-        ax.set_xlabel ('time')
-        ax.set_ylabel ('occupassion')
+        ax.set_xlabel ('Time')
+        ax.set_ylabel ('Occupassion')
         ax.legend()
         ps.set(ax)
         pdfall.savefig(f)
@@ -268,8 +275,8 @@ if __name__ == '__main__':
         axi.plot (ts, Ildn, label='left down')
         axi.plot (ts, Irup, label='right up')
         axi.plot (ts, Irdn, label='right down')
-        axi.set_xlabel ('time')
-        axi.set_ylabel ('current')
+        axi.set_xlabel ('Time')
+        axi.set_ylabel ('Current/Voltage')
         axi.legend()
         ps.set(axi)
         pdfall.savefig(fi)

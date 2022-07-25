@@ -1,11 +1,10 @@
 
-Support density quench and mu quench
 ---
-Put all the scatterer sites as well as the charge site together
-
-Compute the entanglement entropy by pulling out a sub-chain in MPS, which is efficient when the scatterer size is large.
-
+* Can choose mu quench or density quench
+* Rewrite the code using combination of single-chain bases
 ---
-4 leads, two Kitaev chains
-
-The excited state of the two Kitaev chains is the excited state of the first chain product the ground state of the second chain
+* Put all the scatterer sites as well as the charge site together
+*Compute the entanglement entropy by pulling out a sub-chain in MPS, which is efficient when the scatterer size is large.
+---
+* 4 leads, two Kitaev chains
+* The excited state of the two Kitaev chains is the excited state of the first chain product the ground state of the second chain

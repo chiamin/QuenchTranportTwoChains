@@ -113,4 +113,15 @@ sort_by_energy_charging
     orbs.insert (it, orb_C.begin(), orb_C.end());
     return orbs;
 }
+
+void insert_at_energy (Real en, const vector<SortInfo>& info2, vector<SortInfo>& info)
+{
+    auto it = info.begin();
+    for(; it != info.end(); it++)
+    {
+        auto [name,i,eni] = *it;
+        if (eni > en) break;
+    }
+    info.insert (it, info2.begin(), info2.end());
+}
 #endif
