@@ -15,10 +15,11 @@ APP=quench
 # 4. Add any headers your program depends on here. The make program
 #    will auto-detect if these headers have changed and recompile your app.
 MYDIR=$(HOME)/itensor.utility/
+INC=../include
 
-MYFLAGS=-I$(MYDIR) -fmax-errors=3 -Wno-unused-variable -Wno-unused-function -Wno-sign-compare
+MYFLAGS=-I$(MYDIR) -I$(INC) -fmax-errors=3 -Wno-unused-variable -Wno-unused-function -Wno-sign-compare
 
-HEADERS=MyObserver.h MixedBasis.h SortBasis.h SpecialFermion.h tdvp.h TDVPObserver.h basisextension.h InitState.h BdGBasis.h OneParticleBasis.h Hamiltonian.h
+HEADERS=$(INC)/MyObserver.h $(INC)/MixedBasis.h $(INC)/SortBasis.h $(INC)/SpecialFermion.h $(INC)/tdvp.h $(INC)/TDVPObserver.h $(INC)/basisextension.h $(INC)/InitState.h $(INC)/BdGBasis.h $(INC)/OneParticleBasis.h $(INC)/Hamiltonian.h
 
 # 5. For any additional .cc (source) files making up your project,
 #    add their full filenames here.

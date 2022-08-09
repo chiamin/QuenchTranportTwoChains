@@ -56,24 +56,25 @@ def get_hop_t (fname):
     return ts
 
 def get_data (fname):
+    #dmrgdir = get_para (fname, 'input_dir', str)
+    #dmrgfile = glob.glob ('../gs/*.out')[0]
     L_lead = get_para (fname, 'L_lead', int)
     L_device = get_para (fname, 'L_device', int)
-    L = 2*(2*L_lead + L_device)
+    L = 2*L_lead + L_device
     Nstep = get_para (fname, 'step =', int, last=True)
     iC = get_para (fname, 'charge site', int)
     hopt = get_hop_t (fname)
     maxnC = get_para (fname, 'maxCharge', int)
     t_lead = get_para (fname, 't_lead', float)
 
-    jLups = np.full (Nstep, np.nan)
-    jLdns = np.full (Nstep, np.nan)
-    jRups = np.full (Nstep, np.nan)
-    jRdns = np.full (Nstep, np.nan)
+    jLs = np.full (Nstep, np.nan)
+    jRs = np.full (Nstep, np.nan)
     ns = np.full ((Nstep,L+1), np.nan)
     Ss = np.full ((Nstep,L+1), np.nan)
     dims = np.full ((Nstep,L), np.nan)
     nCs = np.full ((Nstep,2*maxnC+1), np.nan)
-    EEs = np.full (Nstep, np.nan)
+    EEs = np.full (Nstep+1, np.nan)
+    nns = dict()
     with open(fname) as f:
         for line in f:
             line = line.lstrip()
@@ -82,10 +83,10 @@ def get_data (fname):
                 step = int(tmp[-1])
             elif line.startswith('I L/R ='):
                 tmp = line.split()
-                jLups[step-1] = float(tmp[-4]) * 2*pi * t_lead
-                jLdns[step-1] = float(tmp[-3]) * 2*pi * t_lead
-                jRups[step-1] = float(tmp[-2]) * 2*pi * t_lead
-                jRdns[step-1] = float(tmp[-1]) * 2*pi * t_lead
+                jL = float(tmp[-2]) * 2*pi * t_lead
+                jR = float(tmp[-1]) * 2*pi * t_lead
+                jLs[step-1] = jL
+                jRs[step-1] = jR
             elif line.startswith('*den '):
                 tmp = line.split()
                 i = int(tmp[1])
@@ -107,14 +108,23 @@ def get_data (fname):
                 nC = float(tmp[-1])
                 nCs[step-1,n+maxnC] = nC
             elif line.startswith('EE ='):
-                EEs[step-1] = float(line.split()[-1])
+                EEs[step] = float(line.split()[-1])
+            elif line.startswith('Initial EE'):
+                EEs[0] = float(line.split()[-1])
+            elif line.startswith('nn '):
+                tmp = line.split()
+                i,j,nn = int(tmp[1]), int(tmp[2]), float(tmp[-1])
+                if (i,j) not in nns:
+                    nns[i,j] = np.full (Nstep, np.nan)
+                else:
+                    nns[i,j][step-1] = nn
     # jLs: current for the link that is left to the scatterer
     # jRs: current for the link that is right to the scatterer
-    # ns: occupasion
+    # ns: Occupation
     # Ss: entanglement entropy
     # dims: bond dimension
     # nCs: distribution on the charge site
-    return Nstep, L, jLups, jLdns, jRups, jRdns, ns, Ss, dims, nCs, EEs
+    return Nstep, L, jLs, jRs, ns, Ss, dims, nCs, EEs, nns
 
 def plot_prof (ax, data, dt, label=''):
     Nstep, L = np.shape(data)
@@ -144,7 +154,6 @@ def get_basis (fname):
                         return np.array(ens), np.array(segs)
                     ens.append (float(tmp[3]))
                     segs.append (tmp[1])
-    raise Exception
 
 def extrap_current (ts, Il, Ir, plot=False):
     n = 100
@@ -168,70 +177,62 @@ if __name__ == '__main__':
         en_basis, segs = get_basis (fname)
 
         # Get data
-        Nstep, L, jLups, jLdns, jRups, jRdns, ns, Ss, dims, nCs, EEs = get_data (fname)
+        Nstep, L, jLs, jRs, ns, Ss, dims, nCs, EEs, nns = get_data (fname)
         dt = get_para (fname, 'dt', float)
         m = get_para (fname, 'Largest link dim', int)
         ts = dt * np.arange(1,Nstep+1)
 
         # n profile
-        '''f2,ax2 = pl.subplots()
-        plot_prof (ax2, ns, dt, 'density')
-        ax2.set_title ('$m='+str(m)+'$')
-        ps.set(ax2)
-        pdfall.savefig(f2)'''
+        f,ax = pl.subplots()
+        plot_prof (ax, ns, dt, 'Density')
+        ax.set_title ('$m='+str(m)+'$')
+        ps.set(ax)
+        pdfall.savefig(f)
 
         f,ax = pl.subplots()
-        ii = segs == 'Lup'
-        plot_time_slice (ax, ns[:,ii], n=1, marker='.', ls='None', label='L up', xs=en_basis[ii])
-        ii = segs == 'Ldn'
-        plot_time_slice (ax, ns[:,ii], n=1, marker='.', ls='None', label='L down', xs=en_basis[ii])
-        ii = segs == 'Rup'
-        plot_time_slice (ax, ns[:,ii], n=1, marker='x', ls='None', label='R up', xs=en_basis[ii])
-        ii = segs == 'Rdn'
-        plot_time_slice (ax, ns[:,ii], n=1, marker='x', ls='None', label='R down', xs=en_basis[ii])
-        ii = segs == 'Sup'
-        plot_time_slice (ax, ns[:,ii], n=1, marker='+', ls='None', label='S up', xs=en_basis[ii])
-        ii = segs == 'Sdn'
-        plot_time_slice (ax, ns[:,ii], n=1, marker='+', ls='None', label='S down', xs=en_basis[ii])
-        for x in np.where (ii)[0]:
+        ii = segs == 'L'
+        plot_time_slice (ax, ns[:,ii], n=5, marker='.', ls='None', label='L', xs=en_basis[ii])
+        ii = segs == 'R'
+        plot_time_slice (ax, ns[:,ii], n=5, marker='x', ls='None', label='R', xs=en_basis[ii])
+        ii = segs == 'S'
+        plot_time_slice (ax, ns[:,ii], n=5, marker='+', ls='None', label='S', xs=en_basis[ii])
+        iis = np.where (ii)[0]
+        for x in iis:
             ax.axvline (en_basis[x], ls='--', c='gray', alpha=0.5)
         ii = segs == 'C'
         plot_time_slice (ax, ns[:,ii], n=5, marker='*', ls='None', label='C', xs=en_basis[ii])
         ax.set_xlabel ('Energy')
-        ax.set_ylabel ('Occupasion')
+        ax.set_ylabel ('Occupation')
         ax.legend()
         ps.set(ax)
         pdfall.savefig(f)
 
-        '''f,ax = pl.subplots()
-        sites = np.array(range(1,L+2))
-        ii = segs == 'L'
-        plot_time_slice (ax, ns[:,ii], n=5, marker='.', ls='None', label='L', xs=sites[ii])
-        ii = segs == 'R'
-        plot_time_slice (ax, ns[:,ii], n=5, marker='x', ls='None', label='R', xs=sites[ii])
-        ii = segs == 'S'
-        plot_time_slice (ax, ns[:,ii], n=5, marker='+', ls='None', label='S', xs=sites[ii])
-        ii = segs == 'C'
-        plot_time_slice (ax, ns[:,ii], n=5, marker='*', ls='None', label='C', xs=sites[ii])
-        ax.set_xlabel ('site')
-        ax.set_ylabel ('occupasion')
+        # Scatterer occupation
+        slabel = dict()
+        slabel[iis[0]+1] = '$|0\\rangle$'
+        slabel[iis[1]+1] = '$|1\\rangle$'
+        f,ax = pl.subplots()
+        for i in iis:
+            ax.plot (ts, ns[:,i], label=slabel[i+1])
+        ax.set_xlabel('Time')
+        ax.set_ylabel('Occupation')
         ax.legend()
         ps.set(ax)
-        pdfall.savefig(f)'''
+        pdfall.savefig(f)
 
         # S profile
-        f5,ax5 = pl.subplots()
-        plot_prof (ax5, Ss, dt, 'entropy')
-        ax5.set_title ('$m='+str(m)+'$')
-        ps.set(ax5)
-        pdfall.savefig(f5)
+        f,ax = pl.subplots()
+        plot_prof (ax, Ss, dt, 'Entropy')
+        ax.set_title ('$m='+str(m)+'$')
+        ps.set(ax)
+        pdfall.savefig(f)
 
-        f6,ax6 = pl.subplots()
-        plot_time_slice (ax6, Ss, n=3)
-        ax6.set_xlabel ('Site')
-        ax6.set_ylabel ('Entropy')
-        ps.set(ax6)
-        pdfall.savefig(f6)
+        f,ax = pl.subplots()
+        plot_time_slice (ax, Ss, n=3)
+        ax.set_xlabel ('Site')
+        ax.set_ylabel ('Entropy')
+        ps.set(ax)
+        pdfall.savefig(f)
 
         # Bond dimension vs. MPS bond
         f,ax = pl.subplots()
@@ -250,40 +251,35 @@ if __name__ == '__main__':
         ps.set(ax)
         pdfall.savefig(f)
 
-        # Charge site occupasion
+        # Charge site Occupation
         f,ax = pl.subplots()
         maxnC = get_para (fname, 'maxCharge', int)
         cs = range(-maxnC,maxnC+1)
         for i in range(len(cs)):
             ax.plot (ts, nCs[:,i], label='n='+str(cs[i]));
         ax.set_xlabel ('Time')
-        ax.set_ylabel ('Occupassion')
+        ax.set_ylabel ('occupation')
+        ax.legend()
+        ps.set(ax)
+
+        # Current vs time
+        f,ax = pl.subplots()
+        muL = get_para (fname, 'mu_biasL', float)
+        muR = get_para (fname, 'mu_biasR', float)
+        Vb = muR - muL
+        Il = jLs / Vb
+        Ir = jRs / Vb
+        ax.plot (ts, Il, label='left')
+        ax.plot (ts, Ir, label='right')
+        ax.set_xlabel ('Time')
+        ax.set_ylabel ('Current')
         ax.legend()
         ps.set(ax)
         pdfall.savefig(f)
 
-        # current vs time
-        fi,axi = pl.subplots()
-        muL = get_para (fname, 'mu_biasL', float)
-        muR = get_para (fname, 'mu_biasR', float)
-        Vb = muR - muL
-        Ilup = jLups / Vb
-        Ildn = jLdns / Vb
-        Irup = jRups / Vb
-        Irdn = jRdns / Vb
-        axi.plot (ts, Ilup, label='left up')
-        axi.plot (ts, Ildn, label='left down')
-        axi.plot (ts, Irup, label='right up')
-        axi.plot (ts, Irdn, label='right down')
-        axi.set_xlabel ('Time')
-        axi.set_ylabel ('Current/Voltage')
-        axi.legend()
-        ps.set(axi)
-        pdfall.savefig(fi)
-
         # Entanglement entropy
         f,ax = pl.subplots()
-        ax.plot (ts, EEs, marker='.')
+        ax.plot (np.insert(ts, 0, 0.), EEs, marker='.')
         ax.set_xlabel ('Time')
         ax.set_ylabel ('Entanglement entropy')
 
@@ -293,7 +289,17 @@ if __name__ == '__main__':
         ax2 = ax.twinx()
         ax2.set_ylim (ax.get_ylim())
         ax2.set_yticks (yticks, ['$\log(\sqrt{3})$','$\log(\sqrt{2})$','$\log(2)$','$\log(4)$'])
+        ps.set(ax)
+        pdfall.savefig(f)
 
+        # Occupation correlation
+        f,ax = pl.subplots()
+        for i,j in nns:
+            corr = nns[i,j] - ns[:,i-1]*ns[:,j-1]
+            ax.plot (ts, corr, label=slabel[i]+','+slabel[j])
+        ax.set_xlabel ('Time')
+        ax.set_ylabel ('Occupation correlation')
+        ax.legend()
         ps.set(ax)
         pdfall.savefig(f)
 

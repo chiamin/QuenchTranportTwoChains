@@ -55,7 +55,7 @@ void add_CdagC (AutoMPO& ampo, const Basis1& basis1, const Basis2& basis2, int i
         int j2 = to_glob.at({p2,k2});
         string op1 = (dag1 ? "Cdag" : "C");
         string op2 = (dag2 ? "Cdag" : "C");
-        Real c = coef * c12;
+        NumType c = coef * c12;
         // hopping
         if (op_charge != "" and jc != 0)
         {
@@ -92,77 +92,68 @@ void add_SC (AutoMPO& ampo, const Basis1& basis1, const Basis2& basis2, int i1, 
     }
 }
 
-template <typename BasisL, typename BasisR, typename BasisS, typename BasisC, typename SiteType, typename Para>
-AutoMPO get_ampo_Kitaev_chain (const BasisL& leadL, const BasisR& leadR, const BasisS& scatterer, const BasisC& charge, const SiteType& sites, const Para& para, const ToGlobDict& to_glob)
+// The diagonal terms of the Hamiltonian from the one-body Hamiltonian, including the hoppings and the chemical potential
+// <mu> is the additional bias potential
+template <typename Basis>
+void add_diag (AutoMPO& ampo, const ToGlobDict& to_glob, const vector<string>& snames, const Basis& basis, Real mu)
+{
+    string p = basis.name();
+    for(int i = 1; i <= basis.size(); i++)
+    {
+        int j = to_glob.at({p,i});
+        auto en = basis.en(i);
+        ampo += en-mu, "N", j;
+        if (iut::in_vector (snames, p))
+        {
+            auto mui = basis.mu(i);
+            ampo += -0.5 * (en + mui), "I", i;
+        }
+    }
+}
+
+template <typename BasisL, typename BasisR, typename BasisS, typename BasisC, typename SiteType>
+AutoMPO get_ampo_Kitaev_chain
+(const BasisL& leadL, const BasisR& leadR, const BasisS& scatterer, const BasisC& charge,
+ Real mu_biasL, Real mu_biasR, Real tcL, Real tcR, Real Ec, Real Ng, Real EJ,
+ const SiteType& sites, const ToGlobDict& to_glob)
 {
     mycheck (length(sites) == to_glob.size(), "size not match");
 
     AutoMPO ampo (sites);
 
     // Diagonal terms
-    string sname = scatterer.name();
-    auto add_diag = [&ampo, &to_glob, &sname] (const auto& basis)
-    {
-        string p = basis.name();
-        for(int i = 1; i <= basis.size(); i++)
-        {
-            int j = to_glob.at({p,i});
-            auto en = basis.en(i);
-            ampo += en, "N", j;
-            if (p == sname)
-            {
-                auto mu = basis.mu(i);
-                ampo += -0.5 * (en + mu), "I", i;
-            }
-        }
-    };
-    add_diag (leadL);
-    add_diag (leadR);
-    add_diag (scatterer);
+    auto snames = vector<string> {scatterer.name()};
+    add_diag (ampo, to_glob, snames, leadL, mu_biasL);
+    add_diag (ampo, to_glob, snames, leadR, mu_biasR);
+    add_diag (ampo, to_glob, snames, scatterer, 0.);
 
     // Contact hopping
-    add_CdagC (ampo, leadL, scatterer, -1, 1, -para.tcL, to_glob, {"L"}, {"R"}, {"S"}, "C");
-    add_CdagC (ampo, scatterer, leadL, 1, -1, -para.tcL, to_glob, {"L"}, {"R"}, {"S"}, "C");
-    add_CdagC (ampo, leadR, scatterer, 1, -1, -para.tcR, to_glob, {"L"}, {"R"}, {"S"}, "C");
-    add_CdagC (ampo, scatterer, leadR, -1, 1, -para.tcR, to_glob, {"L"}, {"R"}, {"S"}, "C");
+    add_CdagC (ampo, leadL, scatterer, -1, 1, tcL, to_glob, {"L"}, {"R"}, {"S"}, "C");
+    add_CdagC (ampo, scatterer, leadL, 1, -1, tcL, to_glob, {"L"}, {"R"}, {"S"}, "C");
+    add_CdagC (ampo, leadR, scatterer, 1, -1, tcR, to_glob, {"L"}, {"R"}, {"S"}, "C");
+    add_CdagC (ampo, scatterer, leadR, -1, 1, tcR, to_glob, {"L"}, {"R"}, {"S"}, "C");
 
     // Charging energy
     string cname = charge.name();
-    if (para.Ec != 0.)
+    if (Ec != 0.)
     {
         int jc = to_glob.at({cname,1});
-        ampo += para.Ec,"NSqr",jc;
-        ampo += para.Ec * para.Ng * para.Ng, "I", jc;
-        ampo += -2.*para.Ec * para.Ng, "N", jc;
-//        ampo +=  0.5*para.Ec,"NSqr",jc;
-//        ampo += -0.5*para.Ec,"N",jc;
+        ampo += Ec,"NSqr",jc;
+        ampo += Ec * Ng * Ng, "I", jc;
+        ampo += -2.*Ec * Ng, "N", jc;
     }
 
-    // Superconducting
-    /*if (para.Delta != 0.)
-    {
-        auto const& chain = sys.parts().at("S");
-        for(int i = 1; i < visit (basis::size(), chain); i++)
-            add_SC (ampo, sys, "S", "S", i, i+1, para.Delta);
-    }*/
-
     // Josephson hopping
-    if (para.EJ != 0.)
+    if (EJ != 0.)
     {
         int jc = to_glob.at({cname,1});
-        ampo += para.EJ,"A2",jc;
-        ampo += para.EJ,"A2dag",jc;
+        ampo += EJ,"A2",jc;
+        ampo += EJ,"A2dag",jc;
     }
     return ampo;
 }
 
-
 // Two Kitaev chains coupled by the charging energy
-//
-//  (Left leads)        (Kitaev chains)      (Right leads)
-//  2--4--6--...(-1)    2--4--6--...(-1)     2--4--6--...(-1)
-//
-//  1--3--5--...(-2)    1--3--5--...(-2)     1--3--5--...(-2)
 template <typename BasisL, typename BasisR, typename BasisS, typename BasisC, typename SiteType>
 AutoMPO get_ampo_two_Kitaev_chains
 (const BasisL& leadL_up, const BasisL& leadL_dn, const BasisR& leadR_up, const BasisR& leadR_dn,
@@ -177,29 +168,13 @@ AutoMPO get_ampo_two_Kitaev_chains
     AutoMPO ampo (sites);
 
     // Diagonal terms
-    string sname1 = scatt_up.name();
-    string sname2 = scatt_dn.name();
-    auto add_diag = [&ampo, &to_glob, &sname1, &sname2] (const auto& basis, Real mu)
-    {
-        string p = basis.name();
-        for(int i = 1; i <= basis.size(); i++)
-        {
-            int j = to_glob.at({p,i});
-            auto en = basis.en(i);
-            ampo += en-mu, "N", j;
-            if (p == sname1 or p == sname2)
-            {
-                auto mui = basis.mu(i);
-                ampo += -0.5 * (en + mui), "I", i;
-            }
-        }
-    };
-    add_diag (leadL_up, mu_biasL_up);
-    add_diag (leadL_dn, mu_biasL_dn);
-    add_diag (leadR_up, mu_biasR_up);
-    add_diag (leadR_dn, mu_biasR_dn);
-    add_diag (scatt_up, 0.);
-    add_diag (scatt_dn, 0.);
+    auto snames = vector<string> {scatt_up.name(), scatt_dn.name()};
+    add_diag (ampo, to_glob, snames, leadL_up, mu_biasL_up);
+    add_diag (ampo, to_glob, snames, leadL_dn, mu_biasL_dn);
+    add_diag (ampo, to_glob, snames, leadR_up, mu_biasR_up);
+    add_diag (ampo, to_glob, snames, leadR_dn, mu_biasR_dn);
+    add_diag (ampo, to_glob, snames, scatt_up, 0.);
+    add_diag (ampo, to_glob, snames, scatt_dn, 0.);
 
     // Contact hopping
     auto add_hopping = [&ampo, &to_glob] (const auto& basis1, const auto& basis2, int i1, int i2, Real coef)

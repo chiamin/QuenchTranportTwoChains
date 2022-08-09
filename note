@@ -1,4 +1,4 @@
-
+* New .cc file for one-chain system
 ---
 * Can choose mu quench or density quench
 * Rewrite the code using combination of single-chain bases

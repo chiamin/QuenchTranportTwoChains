@@ -36,6 +36,78 @@ tuple <Real,Real,int,int> en_charging_energy (int maxOcc, Real Ec, Real Ng)
 }
 
 template <typename BasisL, typename BasisR, typename BasisS, typename SiteType>
+MPS get_ground_state_BdG_scatter (const BasisL& leadL, const BasisR& leadR, const BasisS& scatterer,
+                                  Real muL, Real muR, Real Ec, Real Ng, const SiteType& sites, int maxOcc, const ToGlobDict& to_glob)
+{
+    int N = to_glob.size();
+    mycheck (length(sites) == N, "size not match");
+
+    // Get the ground state for SC (even particle number)
+    vector<string> state (N+1);
+
+    // Leads
+    auto occ_negative_en_states = [&to_glob, &state] (const auto& basis, Real mu)
+    {
+        string p = basis.name();
+        for(int k = 1; k <= basis.size(); k++)
+        {
+            int i = to_glob.at({p,k});
+            auto en = basis.en(k);
+            if (en < mu)
+                state.at(i) = "Occ";
+            else
+                state.at(i) = "Emp";
+        }
+    };
+    occ_negative_en_states (leadL, muL);
+    occ_negative_en_states (leadR, muR);
+
+    // Scatterer
+    string sname = scatterer.name();
+    for(int k = 1; k <= scatterer.size(); k++)
+    {
+        int i = to_glob.at({sname,k});
+        state.at(i) = "Emp";
+    }
+
+    // Superconducting gap
+    Real SC_gap = scatterer.en(1);
+    cout << "SC gap = " << SC_gap << endl;
+
+
+    // Capacity site
+    // Find out the charge numbers, which are integers, that lowest the charging energy, for even and odd parities
+    auto [enC0, enC1, n_even, n_odd] = en_charging_energy (maxOcc, Ec, Ng);
+    // Combine the scatter energies to decide to choose even or odd sector
+    Real en0 = enC0,
+         en1 = enC1 + SC_gap;
+    cout << "n (even,odd) = " << n_even << ", " << n_odd << endl;
+    cout << "E (even,odd) = " << en0 << ", " << en1 << endl;
+    if (en1 < en0) // First excited state in superconductor
+    {
+        int is1 = to_glob.at({"S",1});
+        state.at(is1) = "Occ";
+        cout << "Ground state has odd parity" << endl;
+    }
+    else
+    {
+        cout << "Ground state has even parity" << endl;
+    }
+    int  n   = (en0 <= en1 ? n_even : n_odd);
+    cout << "Initial charge = " << n << endl;
+    // Set the charge site
+    int ic = to_glob.at({"C",1});
+    state.at(ic) = str(n);
+    // Set state
+    InitState init (sites);
+    for(int i = 1; i <= N; i++)
+        init.set (i, state.at(i));
+
+    auto psi = MPS (init);
+    return psi;
+}
+
+template <typename BasisL, typename BasisR, typename BasisS, typename SiteType>
 MPS get_ground_state_BdG_scatter
 (const BasisL& leadL_up, const BasisL& leadL_dn, const BasisR& leadR_up, const BasisR& leadR_dn,
  const BasisS& scatt_up, const BasisS& scatt_dn,
@@ -118,25 +190,6 @@ MPS get_ground_state_BdG_scatter
         init.set (i, state.at(i));
 
     auto psi = MPS (init);
-/*
-    // If Majorana zero mode exists, use the equal-weight superposition of occupied and unoccupied state
-    auto const& en = visit (basis::en(1), sys.parts().at("S"));
-    if (abs(en) < 1e-14)
-    {
-        int iglob = sys.to_glob ("S",1);
-        auto A = psi(iglob);
-        auto links = findInds (A, "Link");
-        auto il1 = links(1);
-        auto il2 = links(2);
-        auto is  = findIndex (A, "Site");
-        mycheck (dim(il1) == 1 and dim(il2) == 1, "Link indices dimension error");
-        Real ele = 1./sqrt(2);
-        A.set (il1=1, il2=1, is=1, ele);
-        A.set (il1=1, il2=1, is=2, ele);
-        psi.ref(iglob) = A;
-        PrintData(psi(iglob));
-    }
-*/
     return psi;
 }
 
