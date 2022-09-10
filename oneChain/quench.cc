@@ -115,6 +115,7 @@ int main(int argc, char* argv[])
     auto sweeps        = iut::Read_sweeps (infile, "TDVP");
     auto sweeps_DMRG   = iut::Read_sweeps (infile, "DMRG");
 
+    auto mea_entrop  = input.getYesNo("measure_entropy");
     cout << setprecision(14) << endl;
 
     MPS psi;
@@ -196,14 +197,14 @@ int main(int argc, char* argv[])
             // Initialze MPS
             // psi: Ground state of disconnected leads and scatterer with bias potentials
             psi = get_ground_state_BdG_scatter (leadL, leadR, scatt,
-                                                mu_biasL, mu_biasR, Ec, Ng,
+                                                mu_leadL+mu_biasL, mu_leadR+mu_biasR, Ec, Ng,
                                                 sites, maxCharge, to_glob);
             psi.position(1);
 
             // Make Hamiltonian MPO for time evolution
             // H: Connected system with no bias potential
             auto ampo = get_ampo_Kitaev_chain (leadL, leadR, scatt, charge,
-                                               0., 0., tcL, tcR, Ec, Ng, EJ,
+                                               mu_leadL, mu_leadR, tcL, tcR, Ec, Ng, EJ,
                                                sites, to_glob);
             H = toMPO (ampo);
             cout << "MPO dim = " << maxLinkDim(H) << endl;
@@ -214,14 +215,14 @@ int main(int argc, char* argv[])
             // Make Hamiltonian MPO for initial state
             // H0: No bias potential
             auto ampoi = get_ampo_Kitaev_chain (leadL, leadR, scatt, charge,
-                                                0., 0., tcL, tcR, Ec, Ng, EJ,
+                                                mu_leadL, mu_leadR, tcL, tcR, Ec, Ng, EJ,
                                                 sites, to_glob);
             auto H0 = toMPO (ampoi);
             cout << "H0 MPO dim = " << maxLinkDim(H0) << endl;
 
             // Initialze MPS which is the ground state of H0
             psi = get_ground_state_BdG_scatter (leadL, leadR, scatt,
-                                                0., 0., Ec, Ng,
+                                                mu_leadL, mu_leadR, Ec, Ng,
                                                 sites, maxCharge, to_glob);
             psi.position(1);
             itensor::Real en0 = dmrg (psi, H0, sweeps_DMRG);
@@ -230,7 +231,7 @@ int main(int argc, char* argv[])
             // Make Hamiltonian MPO for time evolution
             // H: Applying bias potential
             auto ampo = get_ampo_Kitaev_chain (leadL, leadR, scatt, charge,
-                                               0., 0., tcL, tcR, Ec, Ng, EJ,
+                                               mu_leadL+mu_biasL, mu_leadR+mu_biasR, tcL, tcR, Ec, Ng, EJ,
                                                sites, to_glob);
             H = toMPO (ampo);
             cout << "MPO dim = " << maxLinkDim(H) << endl;
@@ -271,9 +272,11 @@ int main(int argc, char* argv[])
     auto [si1, si2] = find_scatterer_region (to_loc, {scatt.name()}, charge.name());
     cout << "charge and scatterer is between sites " << si1 << " " << si2 << endl;
 
-    Real EE = get_entang_entropy (psi, si1, si2, {"Cutoff",measure_entropy_cutoff,"MaxDim",measure_entropy_maxdim});
-    cout << "\tInitial EE = " << EE << endl;
-
+    if (mea_entrop)
+    {
+        Real EE = get_entang_entropy (psi, si1, si2, {"Cutoff",measure_entropy_cutoff,"MaxDim",measure_entropy_maxdim});
+        cout << "\tInitial EE = " << EE << endl;
+    }
     // -- Time evolution --
     cout << "Start time evolution" << endl;
     cout << sweeps << endl;
@@ -312,11 +315,13 @@ int main(int argc, char* argv[])
         timer["current mps"].stop();
 
         // Measure entanglement entropy
-        timer["entang entropy"].start();
-        Real EE = get_entang_entropy (psi, si1, si2, {"Cutoff",measure_entropy_cutoff,"MaxDim",measure_entropy_maxdim});
-        timer["entang entropy"].stop();
-        cout << "\tEE = " << EE << endl;
-
+        if (mea_entrop)
+        {
+            timer["entang entropy"].start();
+            Real EE = get_entang_entropy (psi, si1, si2, {"Cutoff",measure_entropy_cutoff,"MaxDim",measure_entropy_maxdim});
+            timer["entang entropy"].stop();
+            cout << "\tEE = " << EE << endl;
+        }
         // Measure occupation correlation
         timer["occ corr"].start();
         for(const auto& [ij, mpo] : nnmpos)
